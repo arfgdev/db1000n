@@ -105,7 +105,11 @@ func (c *BasicJobConfig) Next(ctx context.Context) bool {
 }
 
 func getProxylist() (urls []string) {
-	resp, err := http.Get(getProxylistURL())
+	return getProxylistByUrl(getProxylistURL())
+}
+
+func getProxylistByUrl(url string) (urls []string) {
+	resp, err := http.Get(url)
 	if err != nil {
 		return nil
 	}
@@ -144,29 +148,32 @@ func parseByteTemplate(input []byte) []byte {
 
 func parseStringTemplate(input string) string {
 	funcMap := template.FuncMap{
-		"random_uuid":     randomUUID,
-		"random_int_n":    rand.Intn,
-		"random_int":      rand.Int,
-		"random_payload":  packetgen.RandomPayload,
-		"random_ip":       packetgen.RandomIP,
-		"random_port":     packetgen.RandomPort,
-		"random_mac_addr": packetgen.RandomMacAddr,
-		"local_ip":        packetgen.LocalIP,
-		"local_mac_addr":  packetgen.LocalMacAddres,
-		"base64_encode":   base64.StdEncoding.EncodeToString,
-		"base64_decode":   base64.StdEncoding.DecodeString,
-		"json_encode":     json.Marshal,
-		"json_decode":     json.Unmarshal,
-		"get_url":         getURLContent,
-		"proxylist_url":   getProxylistURL,
-		"get_proxylist":   getProxylist,
+		"random_uuid":          randomUUID,
+		"random_int_n":         rand.Intn,
+		"random_int":           rand.Int,
+		"random_payload":       packetgen.RandomPayload,
+		"random_ip":            packetgen.RandomIP,
+		"random_port":          packetgen.RandomPort,
+		"random_mac_addr":      packetgen.RandomMacAddr,
+		"local_ip":             packetgen.LocalIP,
+		"local_mac_addr":       packetgen.LocalMacAddres,
+		"base64_encode":        base64.StdEncoding.EncodeToString,
+		"base64_decode":        base64.StdEncoding.DecodeString,
+		"json_encode":          json.Marshal,
+		"json_decode":          json.Unmarshal,
+		"get_url":              getURLContent,
+		"proxylist_url":        getProxylistURL,
+		"get_proxylist":        getProxylist,
+		"get_proxylist_by_url": getProxylistByUrl,
 	}
 	// TODO: consider adding ability to populate custom data
+	input = strings.Replace(input, "\\", "", -1)
 	tmpl, err := template.New("test").Funcs(funcMap).Parse(input)
 	if err != nil {
 		logs.Default.Warning("error parsing template: %v", err)
 		return input
 	}
+
 	var output strings.Builder
 	err = tmpl.Execute(&output, nil)
 	if err != nil {
@@ -192,7 +199,7 @@ func httpJob(ctx context.Context, l *logs.Logger, args JobArgs) error {
 		Method  string
 		Body    json.RawMessage
 		Headers map[string]string
-		Client  json.RawMessage
+		Client  json.RawMessage `json:"client"`
 	}
 	var jobConfig httpJobConfig
 	err := json.Unmarshal(args, &jobConfig)
